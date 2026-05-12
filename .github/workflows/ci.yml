@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate JSON and version consistency
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('.vscode/mcp.json', 'utf8'))"
+          VERSION=$(node -e "
+            const mcp = JSON.parse(require('fs').readFileSync('.vscode/mcp.json', 'utf8'));
+            const arg = mcp.servers.coree.args.find(a => a.includes('@coree-ai/coree@'));
+            console.log(arg.split('@coree-ai/coree@')[1]);
+          ")
+          echo "MCP version: $VERSION"
+          if ! grep -q "@coree-ai/coree@$VERSION" README.md; then
+            echo "ERROR: version mismatch between .vscode/mcp.json and README.md"
+            exit 1
+          fi
+          echo "All checks passed"
